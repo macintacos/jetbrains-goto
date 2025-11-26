@@ -55,7 +55,7 @@ class GoToLinePreviewPopup(
             }
             .createPopup()
 
-        popup.showInBestPositionFor(editor)
+        popup.showCenteredInCurrentWindow(project)
     }
 
     private fun createPreviewEditor(): EditorEx {
