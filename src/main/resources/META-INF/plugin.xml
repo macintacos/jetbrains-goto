@@ -1,11 +1,17 @@
 <idea-plugin>
     <id>com.github.macintacos.jetbrainsgoto</id>
-    <name>jetbrains-goto</name>
+    <name>Go to Line Preview</name>
     <vendor>macintacos</vendor>
 
     <depends>com.intellij.modules.platform</depends>
 
-    <extensions defaultExtensionNs="com.intellij">
-        <postStartupActivity implementation="com.github.macintacos.jetbrainsgoto.startup.MyProjectActivity"/>
-    </extensions>
+    <actions>
+        <action id="GoToLinePreview"
+                class="com.github.macintacos.jetbrainsgoto.actions.GoToLinePreviewAction"
+                text="Go to Line (Preview)"
+                description="Navigate to a line with live preview">
+            <keyboard-shortcut keymap="$default" first-keystroke="ctrl alt G"/>
+            <add-to-group group-id="GoToMenu" anchor="after" relative-to-action="GotoLine"/>
+        </action>
+    </actions>
 </idea-plugin>
