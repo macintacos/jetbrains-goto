@@ -1,0 +1,1 @@
+- After you finish a task, make sure to run `./gradlew fmt`
