@@ -105,7 +105,8 @@ class GoToLinePreviewPopup(
         val settingsButton = createSettingsButton()
 
         val titleLabel = JBLabel("Go to Line").apply {
-            font = font.deriveFont(Font.BOLD)
+            font = font.deriveFont(Font.BOLD, font.size2D + 4f)
+            border = EmptyBorder(0, 2, 0, 0)
         }
 
         val headerPanel = JPanel(BorderLayout()).apply {
