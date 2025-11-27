@@ -58,6 +58,11 @@ class GoToLinePreviewPopup(
 
     fun show() {
         previewEditor = createPreviewEditor()
+
+        // Set initial position before showing (will scroll properly after popup is shown)
+        val currentOffset = editor.caretModel.offset
+        previewEditor.caretModel.moveToOffset(currentOffset)
+
         val panel = createPanel()
         setupListeners()
 
@@ -77,6 +82,13 @@ class GoToLinePreviewPopup(
             .createPopup()
 
         popup.showCenteredInCurrentWindow(project)
+
+        // Scroll to current position after popup is shown and sized
+        javax.swing.SwingUtilities.invokeLater {
+            previewEditor.scrollingModel.disableAnimation()
+            previewEditor.scrollingModel.scrollToCaret(ScrollType.CENTER)
+            previewEditor.scrollingModel.enableAnimation()
+        }
     }
 
     private fun createPreviewEditor(): EditorEx {
