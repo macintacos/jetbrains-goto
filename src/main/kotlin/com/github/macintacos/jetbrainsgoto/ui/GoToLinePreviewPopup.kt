@@ -34,7 +34,6 @@ import java.awt.event.KeyEvent
 import java.awt.event.MouseAdapter
 import java.awt.event.MouseEvent
 import javax.swing.JPanel
-import javax.swing.border.EmptyBorder
 import javax.swing.event.DocumentEvent
 
 class GoToLinePreviewPopup(
@@ -238,7 +237,7 @@ class GoToLinePreviewPopup(
             add(object : AnAction(
                 "Customize Shortcut...",
                 "Configure keyboard shortcut",
-                AllIcons.General.Settings
+                AllIcons.General.Settings,
             ) {
                 override fun actionPerformed(e: AnActionEvent) {
                     openShortcutDialog()
@@ -280,10 +279,15 @@ class GoToLinePreviewPopup(
                     e.keyChar == KeyEvent.VK_BACK_SPACE.toChar() -> true
                     // If 'j' is already in the input, only allow backspace
                     currentText.contains('j') -> false
-                    // 'j' can only be typed after a number (not at start, not after ':')
-                    e.keyChar == 'j' -> currentText.isNotEmpty() && currentText.last().isDigit()
-                    e.keyChar.isDigit() -> true
-                    e.keyChar == ':' -> true
+                    // 'j' can be typed after a number or after 'g' (for "Ngj" visual line syntax)
+                    e.keyChar == 'j' -> currentText.isNotEmpty() &&
+                        (currentText.last().isDigit() || currentText.last() == 'g')
+                    // 'g' can only be typed after a number (for "Ngj" syntax)
+                    e.keyChar == 'g' -> currentText.isNotEmpty() &&
+                        currentText.last().isDigit() &&
+                        !currentText.contains('g')
+                    e.keyChar.isDigit() -> !currentText.contains('g')
+                    e.keyChar == ':' -> !currentText.contains('g')
                     else -> false
                 }
                 if (!isAllowed) {
@@ -312,16 +316,29 @@ class GoToLinePreviewPopup(
         })
     }
 
-    private fun parseInput(): Pair<Int, Int>? {
+    private sealed class NavigationResult {
+        data class Absolute(val line: Int, val column: Int) : NavigationResult()
+        data class RelativeLogical(val count: Int, val targetLine: Int) : NavigationResult()
+        data class RelativeVisual(val count: Int) : NavigationResult()
+    }
+
+    private fun parseInput(): NavigationResult? {
         val text = lineInput.text
         if (text.isEmpty()) return null
 
-        // Handle relative navigation with "j" suffix (e.g., "10j" = 10 lines down)
+        // Handle visual line navigation with "gj" suffix (e.g., "10gj" = 10 visual lines down)
+        if (text.endsWith("gj")) {
+            val count = text.dropLast(2).toIntOrNull() ?: return null
+            if (count < 1) return null
+            return NavigationResult.RelativeVisual(count)
+        }
+
+        // Handle logical line navigation with "j" suffix (e.g., "10j" = 10 lines down)
         if (text.endsWith("j")) {
             val count = text.dropLast(1).toIntOrNull() ?: return null
             val targetLine = currentLine + count
             if (targetLine < 1 || targetLine > lineCount) return null
-            return Pair(targetLine, 1)
+            return NavigationResult.RelativeLogical(count, targetLine)
         }
 
         val parts = text.split(":")
@@ -334,7 +351,30 @@ class GoToLinePreviewPopup(
             1
         }
 
-        return Pair(lineNumber, column)
+        return NavigationResult.Absolute(lineNumber, column)
+    }
+
+    private fun calculateOffset(result: NavigationResult): Int {
+        return when (result) {
+            is NavigationResult.Absolute -> {
+                val lineStartOffset = document.getLineStartOffset(result.line - 1)
+                val lineEndOffset = document.getLineEndOffset(result.line - 1)
+                val lineLength = lineEndOffset - lineStartOffset
+                val columnOffset = (result.column - 1).coerceIn(0, lineLength)
+                lineStartOffset + columnOffset
+            }
+            is NavigationResult.RelativeLogical -> {
+                document.getLineStartOffset(result.targetLine - 1)
+            }
+            is NavigationResult.RelativeVisual -> {
+                // Get current visual position and move down by visual lines
+                val currentOffset = editor.caretModel.offset
+                val currentVisualPos = editor.offsetToVisualPosition(currentOffset)
+                val targetVisualLine = currentVisualPos.line + result.count
+                val targetVisualPos = com.intellij.openapi.editor.VisualPosition(targetVisualLine, 0)
+                editor.visualPositionToOffset(targetVisualPos)
+            }
+        }
     }
 
     private fun updatePreview() {
@@ -346,28 +386,30 @@ class GoToLinePreviewPopup(
             return
         }
 
-        val (lineNumber, column) = parseInput() ?: run {
+        val result = parseInput() ?: run {
             showError("Invalid position — file has $lineCount lines")
             return
         }
 
         // Show navigation hint
-        val isRelative = text.endsWith("j")
-        val hasColumn = text.contains(":") && text.substringAfter(":").isNotEmpty()
-        statusLabel.text = when {
-            isRelative -> "Navigate ${"${text.dropLast(1)}"} lines down to line $lineNumber"
-            hasColumn -> "Navigate to line $lineNumber, column $column"
-            else -> "Navigate to line $lineNumber"
+        statusLabel.text = when (result) {
+            is NavigationResult.Absolute -> {
+                val hasColumn = text.contains(":") && text.substringAfter(":").isNotEmpty()
+                if (hasColumn) {
+                    "Navigate to line ${result.line}, column ${result.column}"
+                } else {
+                    "Navigate to line ${result.line}"
+                }
+            }
+            is NavigationResult.RelativeLogical -> {
+                "Navigate ${result.count} lines down to line ${result.targetLine}"
+            }
+            is NavigationResult.RelativeVisual -> {
+                "Navigate ${result.count} visual lines down"
+            }
         }
 
-        val lineStartOffset = document.getLineStartOffset(lineNumber - 1)
-        val lineEndOffset = document.getLineEndOffset(lineNumber - 1)
-        val lineLength = lineEndOffset - lineStartOffset
-
-        // Calculate offset with column
-        val columnOffset = (column - 1).coerceIn(0, lineLength)
-        val offset = lineStartOffset + columnOffset
-
+        val offset = calculateOffset(result)
         previewEditor.caretModel.moveToOffset(offset)
         previewEditor.scrollingModel.scrollToCaret(ScrollType.CENTER)
     }
@@ -379,19 +421,13 @@ class GoToLinePreviewPopup(
             return false
         }
 
-        val parsed = parseInput()
-        if (parsed == null) {
+        val result = parseInput()
+        if (result == null) {
             showError("Invalid position — file has $lineCount lines")
             return false
         }
 
-        val (lineNumber, column) = parsed
-        val lineStartOffset = document.getLineStartOffset(lineNumber - 1)
-        val lineEndOffset = document.getLineEndOffset(lineNumber - 1)
-        val lineLength = lineEndOffset - lineStartOffset
-
-        val columnOffset = (column - 1).coerceIn(0, lineLength)
-        val offset = lineStartOffset + columnOffset
+        val offset = calculateOffset(result)
 
         // If there was a selection when the popup was opened, extend it to the new position
         if (selectionAnchor != null) {
@@ -459,9 +495,9 @@ class GoToLinePreviewPopup(
             isOpaque = false
             add(createText("Format: "))
             add(createBadge("line[:column]"))
-            add(createText(" or "))
+            add(createText(", "))
             add(createBadge("#[j,k]"))
-            add(createText(" (relative) — e.g. "))
+            add(createText(" (lines) — e.g. "))
             add(createBadge("42"))
             add(createText(", "))
             add(createBadge("42:10"))
