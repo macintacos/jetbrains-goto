@@ -1,4 +1,4 @@
-package com.github.macintacos.jetbrainsgoto.settings
+package com.github.macintacos.goto.settings
 
 import com.intellij.openapi.options.Configurable
 import com.intellij.ui.components.JBLabel

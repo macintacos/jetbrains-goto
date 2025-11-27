@@ -1,5 +1,5 @@
 <idea-plugin>
-    <id>com.github.macintacos.jetbrainsgoto</id>
+    <id>com.github.macintacos.goto</id>
     <name>Go to...</name>
     <vendor>excessivedotdev</vendor>
 
@@ -7,17 +7,17 @@
 
     <extensions defaultExtensionNs="com.intellij">
         <applicationService
-            serviceImplementation="com.github.macintacos.jetbrainsgoto.settings.GoToSettings"/>
+            serviceImplementation="com.github.macintacos.goto.settings.GoToSettings"/>
         <applicationConfigurable
             parentId="tools"
-            instance="com.github.macintacos.jetbrainsgoto.settings.GoToSettingsConfigurable"
-            id="com.github.macintacos.jetbrainsgoto.settings.GoToSettingsConfigurable"
+            instance="com.github.macintacos.goto.settings.GoToSettingsConfigurable"
+            id="com.github.macintacos.goto.settings.GoToSettingsConfigurable"
             displayName="Go to..."/>
     </extensions>
 
     <actions>
         <action id="GoToLinePreview"
-            class="com.github.macintacos.jetbrainsgoto.actions.GoToLinePreviewAction"
+            class="com.github.macintacos.goto.actions.GoToLinePreviewAction"
             text="Go to Line (Preview)"
             description="Navigate to a line with live preview">
             <add-to-group group-id="GoToMenu" anchor="after" relative-to-action="GotoLine"/>

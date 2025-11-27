@@ -1,4 +1,4 @@
-package com.github.macintacos.jetbrainsgoto.settings
+package com.github.macintacos.goto.settings
 
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.components.PersistentStateComponent

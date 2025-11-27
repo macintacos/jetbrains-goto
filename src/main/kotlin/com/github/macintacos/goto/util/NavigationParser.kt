@@ -1,4 +1,4 @@
-package com.github.macintacos.jetbrainsgoto.util
+package com.github.macintacos.goto.util
 
 /**
  * Parses navigation input text into navigation results.

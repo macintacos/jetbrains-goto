@@ -1,7 +1,7 @@
-package com.github.macintacos.jetbrainsgoto
+package com.github.macintacos.goto
 
-import com.github.macintacos.jetbrainsgoto.util.NavigationParser
-import com.github.macintacos.jetbrainsgoto.util.NavigationParser.NavigationResult
+import com.github.macintacos.goto.util.NavigationParser
+import com.github.macintacos.goto.util.NavigationParser.NavigationResult
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test

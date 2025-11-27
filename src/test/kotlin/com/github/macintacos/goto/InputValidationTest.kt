@@ -1,6 +1,6 @@
-package com.github.macintacos.jetbrainsgoto
+package com.github.macintacos.goto
 
-import com.github.macintacos.jetbrainsgoto.util.InputValidator
+import com.github.macintacos.goto.util.InputValidator
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test

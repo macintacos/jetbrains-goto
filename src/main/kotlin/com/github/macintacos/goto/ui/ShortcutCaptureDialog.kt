@@ -1,4 +1,4 @@
-package com.github.macintacos.jetbrainsgoto.ui
+package com.github.macintacos.goto.ui
 
 import com.intellij.openapi.keymap.KeymapManager
 import com.intellij.openapi.project.Project

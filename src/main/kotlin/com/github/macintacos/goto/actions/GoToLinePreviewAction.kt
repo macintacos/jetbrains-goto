@@ -1,6 +1,6 @@
-package com.github.macintacos.jetbrainsgoto.actions
+package com.github.macintacos.goto.actions
 
-import com.github.macintacos.jetbrainsgoto.ui.GoToLinePreviewPopup
+import com.github.macintacos.goto.ui.GoToLinePreviewPopup
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.actionSystem.CommonDataKeys

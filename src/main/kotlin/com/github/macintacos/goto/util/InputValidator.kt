@@ -1,4 +1,4 @@
-package com.github.macintacos.jetbrainsgoto.util
+package com.github.macintacos.goto.util
 
 /**
  * Validates input characters for the Go to Line popup.

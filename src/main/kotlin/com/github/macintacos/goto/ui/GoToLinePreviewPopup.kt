@@ -1,6 +1,6 @@
-package com.github.macintacos.jetbrainsgoto.ui
+package com.github.macintacos.goto.ui
 
-import com.github.macintacos.jetbrainsgoto.util.NavigationParser.NavigationResult
+import com.github.macintacos.goto.util.NavigationParser.NavigationResult
 import com.intellij.icons.AllIcons
 import com.intellij.openapi.actionSystem.ActionUpdateThread
 import com.intellij.openapi.actionSystem.AnAction
@@ -279,7 +279,7 @@ class GoToLinePreviewPopup(
         // Filter to only allow numbers and colon
         lineInput.addKeyListener(object : KeyAdapter() {
             override fun keyTyped(e: KeyEvent) {
-                val isAllowed = com.github.macintacos.jetbrainsgoto.util.InputValidator.isInputAllowed(
+                val isAllowed = com.github.macintacos.goto.util.InputValidator.isInputAllowed(
                     lineInput.text,
                     lineInput.caretPosition,
                     e.keyChar,
@@ -306,7 +306,7 @@ class GoToLinePreviewPopup(
         lineInput.document.addDocumentListener(object : DocumentAdapter() {
             override fun textChanged(e: DocumentEvent) {
                 updateDebounceAlarm.cancelAllRequests()
-                val debounceMs = com.github.macintacos.jetbrainsgoto.settings.GoToSettings.getInstance().previewDebounceMs
+                val debounceMs = com.github.macintacos.goto.settings.GoToSettings.getInstance().previewDebounceMs
                 updateDebounceAlarm.addRequest({ updatePreview() }, debounceMs)
             }
         })
@@ -317,7 +317,7 @@ class GoToLinePreviewPopup(
         val currentVisualLine = editor.offsetToVisualPosition(editor.caretModel.offset).line
         val maxVisualLine = editor.offsetToVisualPosition(document.textLength).line
 
-        return com.github.macintacos.jetbrainsgoto.util.NavigationParser.parseInput(
+        return com.github.macintacos.goto.util.NavigationParser.parseInput(
             text = text,
             currentLine = currentLine,
             lineCount = lineCount,
