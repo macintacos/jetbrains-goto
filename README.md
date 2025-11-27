@@ -5,13 +5,26 @@
 [![Downloads](https://img.shields.io/jetbrains/plugin/d/MARKETPLACE_ID.svg)](https://plugins.jetbrains.com/plugin/MARKETPLACE_ID)
 
 <!-- Plugin description -->
-This Fancy IntelliJ Platform Plugin is going to be your implementation of the brilliant ideas that
-you have.
+Currently provides a single command, "Go to Line (Preview)", which gives you a proper preview for
+navigating to a line in the current file.
 
-This specific section is a source for the [plugin.xml](/src/main/resources/META-INF/plugin.xml) file
-which will be extracted by the [Gradle](/build.gradle.kts) during the build process.
+Featureset:
 
-To keep everything working, do not remove `<!-- ... -->` sections.
+- Command "Go to Line (Preview)" provided. If you're using IdeaVIM, the command is called
+  `GoToLinePreview` if you want to remap it.
+- Ability to remap the command in the UI itself.
+- Support a variety of formats for input:
+    - `line` - just provide a number (e.g. `10`) and it will bring you to that line in the file.
+    - `line:column` - will do the same, but also jump to the column you specify.
+    - `line[j,k]` - for relative line jumping. Type `10j` for example, and you will jump down 10
+      lines from the current position.
+    - `line[gj,gk]` - for _visual_ relative line jumping. Type `10gj` for example, and you will jump
+      down 10 lines _visually_ from the current position. This is useful when you have soft-wrap
+      enabled.
+- Respects your selection - if you start selecting text (for example, hit `v` while in IdeaVIM
+  `NORMAL` mode) and then navigate using the command, the cursor will navigate to that position and
+  your selection will be updated.
+
 <!-- Plugin description end -->
 
 ## Installation
