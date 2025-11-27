@@ -11,6 +11,9 @@
                 text="Go to Line (Preview)"
                 description="Navigate to a line with live preview">
             <add-to-group group-id="GoToMenu" anchor="after" relative-to-action="GotoLine"/>
+            <keyboard-shortcut keymap="$default" first-keystroke="control alt G"/>
+            <keyboard-shortcut keymap="Mac OS X" first-keystroke="meta alt G"/>
+            <keyboard-shortcut keymap="Mac OS X 10.5+" first-keystroke="meta alt G"/>
         </action>
     </actions>
 </idea-plugin>

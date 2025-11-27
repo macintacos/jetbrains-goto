@@ -48,6 +48,9 @@ dependencies {
         // Module Dependencies. Uses `platformBundledModules` property from the gradle.properties file for bundled IntelliJ Platform modules.
         bundledModules(providers.gradleProperty("platformBundledModules").map { it.split(',') })
 
+        // Development-only plugins (not dependencies, just for testing in sandbox)
+        plugin("IdeaVIM", "2.27.2")
+
         testFramework(TestFrameworkType.Platform)
     }
 }
@@ -143,6 +146,7 @@ tasks {
         description = "Format Kotlin code with ktlint"
         group = "formatting"
     }
+
 }
 
 intellijPlatformTesting {
