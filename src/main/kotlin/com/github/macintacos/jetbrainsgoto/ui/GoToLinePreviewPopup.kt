@@ -1,5 +1,6 @@
 package com.github.macintacos.jetbrainsgoto.ui
 
+import com.github.macintacos.jetbrainsgoto.util.NavigationParser.NavigationResult
 import com.intellij.icons.AllIcons
 import com.intellij.openapi.actionSystem.ActionUpdateThread
 import com.intellij.openapi.actionSystem.AnAction
@@ -278,40 +279,11 @@ class GoToLinePreviewPopup(
         // Filter to only allow numbers and colon
         lineInput.addKeyListener(object : KeyAdapter() {
             override fun keyTyped(e: KeyEvent) {
-                val currentText = lineInput.text
-                val caretPos = lineInput.caretPosition
-                val hasDirectionKey = currentText.contains('j') || currentText.contains('k')
-                val hasG = currentText.contains('g')
-
-                // Find where the suffix starts (g, j, or k)
-                val suffixStart = currentText.indexOfFirst { it == 'g' || it == 'j' || it == 'k' }
-
-                val isAllowed = when {
-                    e.keyChar == KeyEvent.VK_BACK_SPACE.toChar() -> true
-                    // If direction key exists, only allow digits before the suffix
-                    hasDirectionKey && e.keyChar.isDigit() -> caretPos <= suffixStart
-                    // Allow 'g' to be inserted directly before 'j' or 'k' (to convert "10j" to "10gj")
-                    hasDirectionKey && e.keyChar == 'g' && !hasG ->
-                        caretPos == suffixStart && suffixStart > 0 && currentText[suffixStart - 1].isDigit()
-                    // If 'g' exists but no direction key yet, allow digits before 'g' or j/k at end
-                    hasG && e.keyChar.isDigit() -> caretPos <= suffixStart
-                    hasG && (e.keyChar == 'j' || e.keyChar == 'k') ->
-                        caretPos == currentText.length && currentText.last() == 'g'
-                    // Block any other input if direction key exists
-                    hasDirectionKey -> false
-                    // 'j' or 'k' can be typed at end after a number or after 'g'
-                    e.keyChar == 'j' || e.keyChar == 'k' -> currentText.isNotEmpty() &&
-                        caretPos == currentText.length &&
-                        (currentText.last().isDigit() || currentText.last() == 'g')
-                    // 'g' can only be typed at end after a number
-                    e.keyChar == 'g' -> currentText.isNotEmpty() &&
-                        caretPos == currentText.length &&
-                        currentText.last().isDigit() &&
-                        !hasG
-                    e.keyChar.isDigit() -> !hasG
-                    e.keyChar == ':' -> !hasG && !hasDirectionKey
-                    else -> false
-                }
+                val isAllowed = com.github.macintacos.jetbrainsgoto.util.InputValidator.isInputAllowed(
+                    lineInput.text,
+                    lineInput.caretPosition,
+                    e.keyChar,
+                )
                 if (!isAllowed) {
                     e.consume()
                 }
@@ -340,65 +312,18 @@ class GoToLinePreviewPopup(
         })
     }
 
-    private sealed class NavigationResult {
-        data class Absolute(val line: Int, val column: Int) : NavigationResult()
-        data class RelativeLogical(val count: Int, val targetLine: Int) : NavigationResult()
-        data class RelativeVisual(val count: Int) : NavigationResult()
-    }
-
     private fun parseInput(): NavigationResult? {
         val text = lineInput.text
-        if (text.isEmpty()) return null
+        val currentVisualLine = editor.offsetToVisualPosition(editor.caretModel.offset).line
+        val maxVisualLine = editor.offsetToVisualPosition(document.textLength).line
 
-        // Handle visual line navigation with "gj" suffix (e.g., "10gj" = 10 visual lines down)
-        if (text.endsWith("gj")) {
-            val count = text.dropLast(2).toIntOrNull() ?: return null
-            if (count < 1) return null
-            // Check if target visual line would be valid
-            val currentVisualLine = editor.offsetToVisualPosition(editor.caretModel.offset).line
-            val lastOffset = document.textLength
-            val maxVisualLine = editor.offsetToVisualPosition(lastOffset).line
-            if (currentVisualLine + count > maxVisualLine) return null
-            return NavigationResult.RelativeVisual(count)
-        }
-
-        // Handle visual line navigation with "gk" suffix (e.g., "10gk" = 10 visual lines up)
-        if (text.endsWith("gk")) {
-            val count = text.dropLast(2).toIntOrNull() ?: return null
-            if (count < 1) return null
-            // Check if target visual line would be valid
-            val currentVisualLine = editor.offsetToVisualPosition(editor.caretModel.offset).line
-            if (currentVisualLine - count < 0) return null
-            return NavigationResult.RelativeVisual(-count)
-        }
-
-        // Handle logical line navigation with "j" suffix (e.g., "10j" = 10 lines down)
-        if (text.endsWith("j")) {
-            val count = text.dropLast(1).toIntOrNull() ?: return null
-            val targetLine = currentLine + count
-            if (targetLine < 1 || targetLine > lineCount) return null
-            return NavigationResult.RelativeLogical(count, targetLine)
-        }
-
-        // Handle logical line navigation with "k" suffix (e.g., "10k" = 10 lines up)
-        if (text.endsWith("k")) {
-            val count = text.dropLast(1).toIntOrNull() ?: return null
-            val targetLine = currentLine - count
-            if (targetLine < 1 || targetLine > lineCount) return null
-            return NavigationResult.RelativeLogical(-count, targetLine)
-        }
-
-        val parts = text.split(":")
-        val lineNumber = parts[0].toIntOrNull() ?: return null
-        if (lineNumber < 1 || lineNumber > lineCount) return null
-
-        val column = if (parts.size > 1 && parts[1].isNotEmpty()) {
-            parts[1].toIntOrNull() ?: return null
-        } else {
-            1
-        }
-
-        return NavigationResult.Absolute(lineNumber, column)
+        return com.github.macintacos.jetbrainsgoto.util.NavigationParser.parseInput(
+            text = text,
+            currentLine = currentLine,
+            lineCount = lineCount,
+            currentVisualLine = currentVisualLine,
+            maxVisualLine = maxVisualLine,
+        )
     }
 
     private fun calculateOffset(result: NavigationResult): Int {

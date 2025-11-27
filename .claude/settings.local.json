@@ -1,7 +1,8 @@
 {
   "permissions": {
     "allow": [
-      "Bash(./gradlew fmt:*)"
+      "Bash(./gradlew fmt:*)",
+      "Bash(./gradlew test:*)"
     ],
     "deny": [],
     "ask": []

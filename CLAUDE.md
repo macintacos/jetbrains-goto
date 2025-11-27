@@ -1,1 +1,2 @@
 - After you finish a task, make sure to run `./gradlew fmt`
+- Anytime we update the input logic, make sure to update and run relevant unit tests
