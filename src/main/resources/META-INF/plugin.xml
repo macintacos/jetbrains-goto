@@ -1,15 +1,25 @@
 <idea-plugin>
     <id>com.github.macintacos.jetbrainsgoto</id>
-    <name>Go to Line Preview</name>
-    <vendor>macintacos</vendor>
+    <name>Go to...</name>
+    <vendor>excessivedotdev</vendor>
 
     <depends>com.intellij.modules.platform</depends>
 
+    <extensions defaultExtensionNs="com.intellij">
+        <applicationService
+            serviceImplementation="com.github.macintacos.jetbrainsgoto.settings.GoToSettings"/>
+        <applicationConfigurable
+            parentId="tools"
+            instance="com.github.macintacos.jetbrainsgoto.settings.GoToSettingsConfigurable"
+            id="com.github.macintacos.jetbrainsgoto.settings.GoToSettingsConfigurable"
+            displayName="Go to..."/>
+    </extensions>
+
     <actions>
         <action id="GoToLinePreview"
-                class="com.github.macintacos.jetbrainsgoto.actions.GoToLinePreviewAction"
-                text="Go to Line (Preview)"
-                description="Navigate to a line with live preview">
+            class="com.github.macintacos.jetbrainsgoto.actions.GoToLinePreviewAction"
+            text="Go to Line (Preview)"
+            description="Navigate to a line with live preview">
             <add-to-group group-id="GoToMenu" anchor="after" relative-to-action="GotoLine"/>
             <keyboard-shortcut keymap="$default" first-keystroke="control alt G"/>
             <keyboard-shortcut keymap="Mac OS X" first-keystroke="meta alt G"/>

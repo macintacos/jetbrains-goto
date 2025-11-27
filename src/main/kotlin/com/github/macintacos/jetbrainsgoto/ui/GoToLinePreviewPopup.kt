@@ -60,6 +60,9 @@ class GoToLinePreviewPopup(
     // Store the current line number (1-indexed) for relative navigation
     private val currentLine = document.getLineNumber(editor.caretModel.offset) + 1
 
+    // Debounce alarm for preview updates
+    private val updateDebounceAlarm = com.intellij.util.Alarm(com.intellij.util.Alarm.ThreadToUse.SWING_THREAD)
+
     fun show() {
         previewEditor = createPreviewEditor()
 
@@ -77,6 +80,7 @@ class GoToLinePreviewPopup(
             .setMovable(true)
             .setResizable(true)
             .setCancelCallback {
+                updateDebounceAlarm.cancelAllRequests()
                 if (!isEditorReleased) {
                     isEditorReleased = true
                     EditorFactory.getInstance().releaseEditor(previewEditor)
@@ -309,10 +313,12 @@ class GoToLinePreviewPopup(
             }
         })
 
-        // Live preview update
+        // Live preview update with debounce
         lineInput.document.addDocumentListener(object : DocumentAdapter() {
             override fun textChanged(e: DocumentEvent) {
-                updatePreview()
+                updateDebounceAlarm.cancelAllRequests()
+                val debounceMs = com.github.macintacos.jetbrainsgoto.settings.GoToSettings.getInstance().previewDebounceMs
+                updateDebounceAlarm.addRequest({ updatePreview() }, debounceMs)
             }
         })
     }
