@@ -1,11 +1,13 @@
 <!-- Keep a Changelog guide -> https://keepachangelog.com -->
 
-# jetbrains-goto Changelog
+# `goto` Changelog
 
 ## [Unreleased]
 
 ## [0.1.0]
+
 ### Added
+
 - Initial release
 - Go to Line with live preview
 - Support for line and column navigation (e.g., `42`, `42:10`)

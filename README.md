@@ -1,6 +1,6 @@
 # jetbrains-goto
 
-![Build](https://github.com/macintacos/jetbrains-goto/workflows/Build/badge.svg)
+![Build](https://github.com/macintacos/goto/workflows/Build/badge.svg)
 [![Version](https://img.shields.io/jetbrains/plugin/v/MARKETPLACE_ID.svg)](https://plugins.jetbrains.com/plugin/MARKETPLACE_ID)
 [![Downloads](https://img.shields.io/jetbrains/plugin/d/MARKETPLACE_ID.svg)](https://plugins.jetbrains.com/plugin/MARKETPLACE_ID)
 
@@ -32,7 +32,7 @@ Featureset:
 - Using the IDE built-in plugin system:
 
   <kbd>Settings/Preferences</kbd> > <kbd>Plugins</kbd> > <kbd>Marketplace</kbd> > <kbd>Search for "
-  jetbrains-goto"</kbd> >
+  goto"</kbd> >
   <kbd>Install</kbd>
 
 - Using JetBrains Marketplace:
@@ -48,7 +48,7 @@ Featureset:
 
 - Manually:
 
-  Download the [latest release](https://github.com/macintacos/jetbrains-goto/releases/latest) and
+  Download the [latest release](https://github.com/macintacos/goto/releases/latest) and
   install it manually using
   <kbd>Settings/Preferences</kbd> > <kbd>Plugins</kbd> > <kbd>⚙️</kbd> > <kbd>Install plugin from
   disk...</kbd>
