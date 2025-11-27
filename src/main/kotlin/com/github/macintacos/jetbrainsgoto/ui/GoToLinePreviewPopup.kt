@@ -14,6 +14,11 @@ import com.intellij.ui.components.JBLabel
 import com.intellij.ui.components.JBTextField
 import java.awt.BorderLayout
 import java.awt.Dimension
+import java.awt.FlowLayout
+import java.awt.Font
+import java.awt.Graphics
+import java.awt.Graphics2D
+import java.awt.RenderingHints
 import java.awt.event.KeyAdapter
 import java.awt.event.KeyEvent
 import javax.swing.JPanel
@@ -103,11 +108,18 @@ class GoToLinePreviewPopup(
             preferredSize = Dimension(700, 300)
         }
 
+        val dismissHint = createDismissHint()
+
+        val bottomPanel = JPanel(BorderLayout()).apply {
+            add(statusLabel, BorderLayout.WEST)
+            add(dismissHint, BorderLayout.EAST)
+        }
+
         return JPanel(BorderLayout(5, 5)).apply {
             border = EmptyBorder(5, 5, 5, 5)
             add(inputPanel, BorderLayout.NORTH)
             add(editorComponent, BorderLayout.CENTER)
-            add(statusLabel, BorderLayout.SOUTH)
+            add(bottomPanel, BorderLayout.SOUTH)
         }
     }
 
@@ -222,5 +234,61 @@ class GoToLinePreviewPopup(
     private fun showError(message: String) {
         statusLabel.text = message
         statusLabel.foreground = java.awt.Color.RED
+    }
+
+    private fun createDismissHint(): JPanel {
+        val bg = javax.swing.UIManager.getColor("Panel.background")
+            ?: javax.swing.UIManager.getColor("control")
+        val fg = javax.swing.UIManager.getColor("Label.foreground")
+            ?: java.awt.Color.GRAY
+        val isDarkTheme = (bg.red + bg.green + bg.blue) / 3 < 128
+
+        // Subdued foreground color (50% opacity effect)
+        val subduedFg = java.awt.Color(
+            (fg.red + bg.red) / 2,
+            (fg.green + bg.green) / 2,
+            (fg.blue + bg.blue) / 2,
+        )
+
+        // Key badge background - shift from panel background
+        val shift = if (isDarkTheme) 25 else -25
+        val keyBg = java.awt.Color(
+            (bg.red + shift).coerceIn(0, 255),
+            (bg.green + shift).coerceIn(0, 255),
+            (bg.blue + shift).coerceIn(0, 255),
+        )
+
+        // Custom key badge with rounded corners
+        val keyBadge = object : JBLabel("Esc") {
+            init {
+                font = Font(Font.MONOSPACED, Font.PLAIN, font.size - 1)
+                foreground = subduedFg
+                border = EmptyBorder(2, 6, 2, 6)
+                isOpaque = false
+            }
+
+            override fun paintComponent(g: Graphics) {
+                val g2 = g.create() as Graphics2D
+                g2.setRenderingHint(
+                    RenderingHints.KEY_ANTIALIASING,
+                    RenderingHints.VALUE_ANTIALIAS_ON,
+                )
+                g2.color = keyBg
+                g2.fillRoundRect(0, 0, width, height, 6, 6)
+                g2.dispose()
+                super.paintComponent(g)
+            }
+        }
+
+        val toLabel = JBLabel(" to dismiss").apply {
+            foreground = subduedFg
+            font = font.deriveFont(font.size2D - 1f)
+        }
+
+        return JPanel(FlowLayout(FlowLayout.RIGHT, 0, 0)).apply {
+            isOpaque = false
+            add(keyBadge)
+            add(toLabel)
+        }
     }
 }
