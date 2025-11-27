@@ -275,14 +275,15 @@ class GoToLinePreviewPopup(
         lineInput.addKeyListener(object : KeyAdapter() {
             override fun keyTyped(e: KeyEvent) {
                 val currentText = lineInput.text
+                val hasDirectionKey = currentText.contains('j') || currentText.contains('k')
                 val isAllowed = when {
                     e.keyChar == KeyEvent.VK_BACK_SPACE.toChar() -> true
-                    // If 'j' is already in the input, only allow backspace
-                    currentText.contains('j') -> false
-                    // 'j' can be typed after a number or after 'g' (for "Ngj" visual line syntax)
-                    e.keyChar == 'j' -> currentText.isNotEmpty() &&
+                    // If 'j' or 'k' is already in the input, only allow backspace
+                    hasDirectionKey -> false
+                    // 'j' or 'k' can be typed after a number or after 'g' (for visual line syntax)
+                    e.keyChar == 'j' || e.keyChar == 'k' -> currentText.isNotEmpty() &&
                         (currentText.last().isDigit() || currentText.last() == 'g')
-                    // 'g' can only be typed after a number (for "Ngj" syntax)
+                    // 'g' can only be typed after a number (for "Ngj"/"Ngk" syntax)
                     e.keyChar == 'g' -> currentText.isNotEmpty() &&
                         currentText.last().isDigit() &&
                         !currentText.contains('g')
@@ -330,7 +331,22 @@ class GoToLinePreviewPopup(
         if (text.endsWith("gj")) {
             val count = text.dropLast(2).toIntOrNull() ?: return null
             if (count < 1) return null
+            // Check if target visual line would be valid
+            val currentVisualLine = editor.offsetToVisualPosition(editor.caretModel.offset).line
+            val lastOffset = document.textLength
+            val maxVisualLine = editor.offsetToVisualPosition(lastOffset).line
+            if (currentVisualLine + count > maxVisualLine) return null
             return NavigationResult.RelativeVisual(count)
+        }
+
+        // Handle visual line navigation with "gk" suffix (e.g., "10gk" = 10 visual lines up)
+        if (text.endsWith("gk")) {
+            val count = text.dropLast(2).toIntOrNull() ?: return null
+            if (count < 1) return null
+            // Check if target visual line would be valid
+            val currentVisualLine = editor.offsetToVisualPosition(editor.caretModel.offset).line
+            if (currentVisualLine - count < 0) return null
+            return NavigationResult.RelativeVisual(-count)
         }
 
         // Handle logical line navigation with "j" suffix (e.g., "10j" = 10 lines down)
@@ -339,6 +355,14 @@ class GoToLinePreviewPopup(
             val targetLine = currentLine + count
             if (targetLine < 1 || targetLine > lineCount) return null
             return NavigationResult.RelativeLogical(count, targetLine)
+        }
+
+        // Handle logical line navigation with "k" suffix (e.g., "10k" = 10 lines up)
+        if (text.endsWith("k")) {
+            val count = text.dropLast(1).toIntOrNull() ?: return null
+            val targetLine = currentLine - count
+            if (targetLine < 1 || targetLine > lineCount) return null
+            return NavigationResult.RelativeLogical(-count, targetLine)
         }
 
         val parts = text.split(":")
@@ -367,10 +391,10 @@ class GoToLinePreviewPopup(
                 document.getLineStartOffset(result.targetLine - 1)
             }
             is NavigationResult.RelativeVisual -> {
-                // Get current visual position and move down by visual lines
+                // Get current visual position and move by visual lines
                 val currentOffset = editor.caretModel.offset
                 val currentVisualPos = editor.offsetToVisualPosition(currentOffset)
-                val targetVisualLine = currentVisualPos.line + result.count
+                val targetVisualLine = (currentVisualPos.line + result.count).coerceAtLeast(0)
                 val targetVisualPos = com.intellij.openapi.editor.VisualPosition(targetVisualLine, 0)
                 editor.visualPositionToOffset(targetVisualPos)
             }
@@ -402,10 +426,14 @@ class GoToLinePreviewPopup(
                 }
             }
             is NavigationResult.RelativeLogical -> {
-                "Navigate ${result.count} lines down to line ${result.targetLine}"
+                val direction = if (result.count > 0) "down" else "up"
+                val absCount = kotlin.math.abs(result.count)
+                "Navigate $absCount lines $direction to line ${result.targetLine}"
             }
             is NavigationResult.RelativeVisual -> {
-                "Navigate ${result.count} visual lines down"
+                val direction = if (result.count > 0) "down" else "up"
+                val absCount = kotlin.math.abs(result.count)
+                "Navigate $absCount visual lines $direction"
             }
         }
 
