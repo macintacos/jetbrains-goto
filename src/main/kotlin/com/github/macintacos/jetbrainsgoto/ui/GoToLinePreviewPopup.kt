@@ -279,20 +279,37 @@ class GoToLinePreviewPopup(
         lineInput.addKeyListener(object : KeyAdapter() {
             override fun keyTyped(e: KeyEvent) {
                 val currentText = lineInput.text
+                val caretPos = lineInput.caretPosition
                 val hasDirectionKey = currentText.contains('j') || currentText.contains('k')
+                val hasG = currentText.contains('g')
+
+                // Find where the suffix starts (g, j, or k)
+                val suffixStart = currentText.indexOfFirst { it == 'g' || it == 'j' || it == 'k' }
+
                 val isAllowed = when {
                     e.keyChar == KeyEvent.VK_BACK_SPACE.toChar() -> true
-                    // If 'j' or 'k' is already in the input, only allow backspace
+                    // If direction key exists, only allow digits before the suffix
+                    hasDirectionKey && e.keyChar.isDigit() -> caretPos <= suffixStart
+                    // Allow 'g' to be inserted directly before 'j' or 'k' (to convert "10j" to "10gj")
+                    hasDirectionKey && e.keyChar == 'g' && !hasG ->
+                        caretPos == suffixStart && suffixStart > 0 && currentText[suffixStart - 1].isDigit()
+                    // If 'g' exists but no direction key yet, allow digits before 'g' or j/k at end
+                    hasG && e.keyChar.isDigit() -> caretPos <= suffixStart
+                    hasG && (e.keyChar == 'j' || e.keyChar == 'k') ->
+                        caretPos == currentText.length && currentText.last() == 'g'
+                    // Block any other input if direction key exists
                     hasDirectionKey -> false
-                    // 'j' or 'k' can be typed after a number or after 'g' (for visual line syntax)
+                    // 'j' or 'k' can be typed at end after a number or after 'g'
                     e.keyChar == 'j' || e.keyChar == 'k' -> currentText.isNotEmpty() &&
+                        caretPos == currentText.length &&
                         (currentText.last().isDigit() || currentText.last() == 'g')
-                    // 'g' can only be typed after a number (for "Ngj"/"Ngk" syntax)
+                    // 'g' can only be typed at end after a number
                     e.keyChar == 'g' -> currentText.isNotEmpty() &&
+                        caretPos == currentText.length &&
                         currentText.last().isDigit() &&
-                        !currentText.contains('g')
-                    e.keyChar.isDigit() -> !currentText.contains('g')
-                    e.keyChar == ':' -> !currentText.contains('g')
+                        !hasG
+                    e.keyChar.isDigit() -> !hasG
+                    e.keyChar == ':' -> !hasG && !hasDirectionKey
                     else -> false
                 }
                 if (!isAllowed) {
