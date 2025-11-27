@@ -1,5 +1,10 @@
 package com.github.macintacos.jetbrainsgoto.ui
 
+import com.intellij.icons.AllIcons
+import com.intellij.openapi.actionSystem.ActionUpdateThread
+import com.intellij.openapi.actionSystem.AnAction
+import com.intellij.openapi.actionSystem.AnActionEvent
+import com.intellij.openapi.actionSystem.DefaultActionGroup
 import com.intellij.openapi.editor.Editor
 import com.intellij.openapi.editor.EditorFactory
 import com.intellij.openapi.editor.ScrollType
@@ -10,17 +15,22 @@ import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.popup.JBPopup
 import com.intellij.openapi.ui.popup.JBPopupFactory
 import com.intellij.ui.DocumentAdapter
+import com.intellij.ui.awt.RelativePoint
 import com.intellij.ui.components.JBLabel
 import com.intellij.ui.components.JBTextField
 import java.awt.BorderLayout
+import java.awt.Cursor
 import java.awt.Dimension
 import java.awt.FlowLayout
 import java.awt.Font
 import java.awt.Graphics
 import java.awt.Graphics2D
+import java.awt.Point
 import java.awt.RenderingHints
 import java.awt.event.KeyAdapter
 import java.awt.event.KeyEvent
+import java.awt.event.MouseAdapter
+import java.awt.event.MouseEvent
 import javax.swing.JPanel
 import javax.swing.border.EmptyBorder
 import javax.swing.event.DocumentEvent
@@ -46,7 +56,6 @@ class GoToLinePreviewPopup(
 
         popup = JBPopupFactory.getInstance()
             .createComponentPopupBuilder(panel, lineInput)
-            .setTitle("Go to Line")
             .setFocusable(true)
             .setRequestFocus(true)
             .setMovable(true)
@@ -93,6 +102,18 @@ class GoToLinePreviewPopup(
     }
 
     private fun createPanel(): JPanel {
+        val settingsButton = createSettingsButton()
+
+        val titleLabel = JBLabel("Go to Line").apply {
+            font = font.deriveFont(Font.BOLD)
+        }
+
+        val headerPanel = JPanel(BorderLayout()).apply {
+            border = EmptyBorder(0, 0, 8, 0)
+            add(titleLabel, BorderLayout.WEST)
+            add(settingsButton, BorderLayout.EAST)
+        }
+
         val helperText = JBLabel("Format: line[:column] — e.g. \"42\" or \"42:10\"").apply {
             foreground = foreground.let { java.awt.Color(it.red, it.green, it.blue, 150) }
             font = font.deriveFont(font.size2D - 1f)
@@ -102,6 +123,11 @@ class GoToLinePreviewPopup(
             border = EmptyBorder(0, 0, 5, 0)
             add(lineInput, BorderLayout.NORTH)
             add(helperText, BorderLayout.SOUTH)
+        }
+
+        val topPanel = JPanel(BorderLayout()).apply {
+            add(headerPanel, BorderLayout.NORTH)
+            add(inputPanel, BorderLayout.SOUTH)
         }
 
         val editorComponent = previewEditor.component.apply {
@@ -116,11 +142,107 @@ class GoToLinePreviewPopup(
         }
 
         return JPanel(BorderLayout(5, 5)).apply {
-            border = EmptyBorder(5, 5, 5, 5)
-            add(inputPanel, BorderLayout.NORTH)
+            border = EmptyBorder(8, 8, 8, 8)
+            add(topPanel, BorderLayout.NORTH)
             add(editorComponent, BorderLayout.CENTER)
             add(bottomPanel, BorderLayout.SOUTH)
         }
+    }
+
+    private fun createSettingsButton(): JPanel {
+        var isHovered = false
+        var isMenuOpen = false
+
+        val bg = javax.swing.UIManager.getColor("Panel.background")
+            ?: java.awt.Color.GRAY
+        val isDarkTheme = (bg.red + bg.green + bg.blue) / 3 < 128
+        val hoverShift = if (isDarkTheme) 30 else -30
+        val hoverBg = java.awt.Color(
+            (bg.red + hoverShift).coerceIn(0, 255),
+            (bg.green + hoverShift).coerceIn(0, 255),
+            (bg.blue + hoverShift).coerceIn(0, 255),
+        )
+
+        val button = object : JPanel(BorderLayout()) {
+            init {
+                isOpaque = false
+                border = EmptyBorder(4, 6, 4, 6)
+                cursor = Cursor.getPredefinedCursor(Cursor.HAND_CURSOR)
+                toolTipText = "Settings"
+                add(JBLabel(AllIcons.Actions.More), BorderLayout.CENTER)
+            }
+
+            override fun paintComponent(g: Graphics) {
+                if (isHovered || isMenuOpen) {
+                    val g2 = g.create() as Graphics2D
+                    g2.setRenderingHint(
+                        RenderingHints.KEY_ANTIALIASING,
+                        RenderingHints.VALUE_ANTIALIAS_ON,
+                    )
+                    g2.color = hoverBg
+                    g2.fillRoundRect(0, 0, width, height, 6, 6)
+                    g2.dispose()
+                }
+                super.paintComponent(g)
+            }
+        }
+
+        button.addMouseListener(object : MouseAdapter() {
+            override fun mouseEntered(e: MouseEvent) {
+                isHovered = true
+                button.repaint()
+            }
+
+            override fun mouseExited(e: MouseEvent) {
+                isHovered = false
+                button.repaint()
+            }
+
+            override fun mouseClicked(e: MouseEvent) {
+                isMenuOpen = true
+                button.repaint()
+                showSettingsMenu(e, button) {
+                    isMenuOpen = false
+                    button.repaint()
+                }
+            }
+        })
+
+        return button
+    }
+
+    private fun showSettingsMenu(e: MouseEvent, component: JPanel, onClose: () -> Unit) {
+        val actionGroup = DefaultActionGroup().apply {
+            add(object : AnAction("Customize Shortcut...", "Configure keyboard shortcut", AllIcons.General.Settings) {
+                override fun actionPerformed(e: AnActionEvent) {
+                    openShortcutDialog()
+                }
+
+                override fun getActionUpdateThread(): ActionUpdateThread = ActionUpdateThread.EDT
+            })
+        }
+
+        val popupMenu = JBPopupFactory.getInstance()
+            .createActionGroupPopup(
+                null,
+                actionGroup,
+                com.intellij.openapi.actionSystem.impl.SimpleDataContext.getProjectContext(project),
+                JBPopupFactory.ActionSelectionAid.SPEEDSEARCH,
+                false,
+            )
+
+        popupMenu.addListener(object : com.intellij.openapi.ui.popup.JBPopupListener {
+            override fun onClosed(event: com.intellij.openapi.ui.popup.LightweightWindowEvent) {
+                onClose()
+            }
+        })
+
+        popupMenu.show(RelativePoint(component, Point(0, component.height)))
+    }
+
+    private fun openShortcutDialog() {
+        popup.cancel()
+        ShortcutCaptureDialog(project, "GoToLinePreview").show()
     }
 
     private fun setupListeners() {

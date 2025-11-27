@@ -10,7 +10,6 @@
                 class="com.github.macintacos.jetbrainsgoto.actions.GoToLinePreviewAction"
                 text="Go to Line (Preview)"
                 description="Navigate to a line with live preview">
-            <keyboard-shortcut keymap="$default" first-keystroke="ctrl alt G"/>
             <add-to-group group-id="GoToMenu" anchor="after" relative-to-action="GotoLine"/>
         </action>
     </actions>
