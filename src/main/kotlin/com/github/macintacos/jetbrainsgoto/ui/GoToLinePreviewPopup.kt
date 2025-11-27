@@ -49,6 +49,13 @@ class GoToLinePreviewPopup(
     private val statusLabel = JBLabel("Enter line[:column] (1-$lineCount)")
     private val defaultStatusColor = statusLabel.foreground
 
+    // Store the selection anchor if there was a selection when the popup was opened
+    private val selectionAnchor: Int? = if (editor.selectionModel.hasSelection()) {
+        editor.selectionModel.selectionStart
+    } else {
+        null
+    }
+
     fun show() {
         previewEditor = createPreviewEditor()
         val panel = createPanel()
@@ -349,6 +356,10 @@ class GoToLinePreviewPopup(
         val columnOffset = (column - 1).coerceIn(0, lineLength)
         val offset = lineStartOffset + columnOffset
 
+        // If there was a selection when the popup was opened, extend it to the new position
+        if (selectionAnchor != null) {
+            editor.selectionModel.setSelection(selectionAnchor, offset)
+        }
         editor.caretModel.moveToOffset(offset)
         editor.scrollingModel.scrollToCaret(ScrollType.CENTER)
         return true
