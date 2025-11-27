@@ -46,7 +46,7 @@ class GoToLinePreviewPopup(
     private lateinit var previewEditor: EditorEx
     private var isEditorReleased = false
     private val lineInput = JBTextField(10)
-    private val statusLabel = JBLabel("Enter line[:column] (1-$lineCount)")
+    private val statusLabel = JBLabel("")
     private val defaultStatusColor = statusLabel.foreground
 
     // Store the selection anchor if there was a selection when the popup was opened
@@ -304,28 +304,29 @@ class GoToLinePreviewPopup(
 
     private fun updatePreview() {
         statusLabel.foreground = defaultStatusColor
+        statusLabel.text = ""
 
         val text = lineInput.text
         if (text.isEmpty()) {
-            statusLabel.text = "Enter line[:column] (1-$lineCount)"
             return
         }
 
         val (lineNumber, column) = parseInput() ?: run {
-            statusLabel.text = "Invalid position — file has $lineCount lines"
+            showError("Invalid position — file has $lineCount lines")
             return
+        }
+
+        // Show navigation hint
+        val hasColumn = text.contains(":") && text.substringAfter(":").isNotEmpty()
+        statusLabel.text = if (hasColumn) {
+            "Navigate to line $lineNumber, column $column"
+        } else {
+            "Navigate to line $lineNumber"
         }
 
         val lineStartOffset = document.getLineStartOffset(lineNumber - 1)
         val lineEndOffset = document.getLineEndOffset(lineNumber - 1)
         val lineLength = lineEndOffset - lineStartOffset
-
-        val statusText = if (column > 1) {
-            "Line $lineNumber:$column of $lineCount (line length: $lineLength)"
-        } else {
-            "Line $lineNumber of $lineCount"
-        }
-        statusLabel.text = statusText
 
         // Calculate offset with column
         val columnOffset = (column - 1).coerceIn(0, lineLength)
