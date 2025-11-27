@@ -4,6 +4,12 @@
 
 ## [Unreleased]
 
+## [0.1.1]
+
+### Changed
+
+- Made the plugin dynamic so it can be installed/updated without an IDE restart
+
 ## [0.1.0]
 
 ### Added
