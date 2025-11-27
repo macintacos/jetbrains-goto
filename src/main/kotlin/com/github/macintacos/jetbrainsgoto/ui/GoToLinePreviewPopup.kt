@@ -15,9 +15,11 @@ import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.popup.JBPopup
 import com.intellij.openapi.ui.popup.JBPopupFactory
 import com.intellij.ui.DocumentAdapter
+import com.intellij.ui.JBColor
 import com.intellij.ui.awt.RelativePoint
 import com.intellij.ui.components.JBLabel
 import com.intellij.ui.components.JBTextField
+import com.intellij.util.ui.JBUI
 import java.awt.BorderLayout
 import java.awt.Cursor
 import java.awt.Dimension
@@ -55,6 +57,9 @@ class GoToLinePreviewPopup(
     } else {
         null
     }
+
+    // Store the current line number (1-indexed) for relative navigation
+    private val currentLine = document.getLineNumber(editor.caretModel.offset) + 1
 
     fun show() {
         previewEditor = createPreviewEditor()
@@ -125,22 +130,19 @@ class GoToLinePreviewPopup(
 
         val titleLabel = JBLabel("Go to Line").apply {
             font = font.deriveFont(Font.BOLD, font.size2D + 4f)
-            border = EmptyBorder(0, 2, 0, 0)
+            border = JBUI.Borders.emptyLeft(2)
         }
 
         val headerPanel = JPanel(BorderLayout()).apply {
-            border = EmptyBorder(0, 0, 8, 0)
+            border = JBUI.Borders.emptyBottom(8)
             add(titleLabel, BorderLayout.WEST)
             add(settingsButton, BorderLayout.EAST)
         }
 
-        val helperText = JBLabel("Format: line[:column] — e.g. \"42\" or \"42:10\"").apply {
-            foreground = foreground.let { java.awt.Color(it.red, it.green, it.blue, 150) }
-            font = font.deriveFont(font.size2D - 1f)
-        }
+        val helperText = createHelperText()
 
         val inputPanel = JPanel(BorderLayout(0, 3)).apply {
-            border = EmptyBorder(0, 0, 5, 0)
+            border = JBUI.Borders.emptyBottom(5)
             add(lineInput, BorderLayout.NORTH)
             add(helperText, BorderLayout.SOUTH)
         }
@@ -162,7 +164,7 @@ class GoToLinePreviewPopup(
         }
 
         return JPanel(BorderLayout(5, 5)).apply {
-            border = EmptyBorder(8, 8, 8, 8)
+            border = JBUI.Borders.empty(8)
             add(topPanel, BorderLayout.NORTH)
             add(editorComponent, BorderLayout.CENTER)
             add(bottomPanel, BorderLayout.SOUTH)
@@ -174,7 +176,7 @@ class GoToLinePreviewPopup(
         var isMenuOpen = false
 
         val bg = javax.swing.UIManager.getColor("Panel.background")
-            ?: java.awt.Color.GRAY
+            ?: JBColor.GRAY
         val isDarkTheme = (bg.red + bg.green + bg.blue) / 3 < 128
         val hoverShift = if (isDarkTheme) 30 else -30
         val hoverBg = java.awt.Color(
@@ -186,7 +188,7 @@ class GoToLinePreviewPopup(
         val button = object : JPanel(BorderLayout()) {
             init {
                 isOpaque = false
-                border = EmptyBorder(4, 6, 4, 6)
+                border = JBUI.Borders.empty(4, 6)
                 cursor = Cursor.getPredefinedCursor(Cursor.HAND_CURSOR)
                 toolTipText = "Settings"
                 add(JBLabel(AllIcons.Actions.More), BorderLayout.CENTER)
@@ -233,7 +235,11 @@ class GoToLinePreviewPopup(
 
     private fun showSettingsMenu(e: MouseEvent, component: JPanel, onClose: () -> Unit) {
         val actionGroup = DefaultActionGroup().apply {
-            add(object : AnAction("Customize Shortcut...", "Configure keyboard shortcut", AllIcons.General.Settings) {
+            add(object : AnAction(
+                "Customize Shortcut...",
+                "Configure keyboard shortcut",
+                AllIcons.General.Settings
+            ) {
                 override fun actionPerformed(e: AnActionEvent) {
                     openShortcutDialog()
                 }
@@ -269,9 +275,17 @@ class GoToLinePreviewPopup(
         // Filter to only allow numbers and colon
         lineInput.addKeyListener(object : KeyAdapter() {
             override fun keyTyped(e: KeyEvent) {
-                val isAllowed = e.keyChar.isDigit() ||
-                    e.keyChar == ':' ||
-                    e.keyChar == KeyEvent.VK_BACK_SPACE.toChar()
+                val currentText = lineInput.text
+                val isAllowed = when {
+                    e.keyChar == KeyEvent.VK_BACK_SPACE.toChar() -> true
+                    // If 'j' is already in the input, only allow backspace
+                    currentText.contains('j') -> false
+                    // 'j' can only be typed after a number (not at start, not after ':')
+                    e.keyChar == 'j' -> currentText.isNotEmpty() && currentText.last().isDigit()
+                    e.keyChar.isDigit() -> true
+                    e.keyChar == ':' -> true
+                    else -> false
+                }
                 if (!isAllowed) {
                     e.consume()
                 }
@@ -284,6 +298,7 @@ class GoToLinePreviewPopup(
                             popup.cancel()
                         }
                     }
+
                     KeyEvent.VK_ESCAPE -> popup.cancel()
                 }
             }
@@ -300,6 +315,14 @@ class GoToLinePreviewPopup(
     private fun parseInput(): Pair<Int, Int>? {
         val text = lineInput.text
         if (text.isEmpty()) return null
+
+        // Handle relative navigation with "j" suffix (e.g., "10j" = 10 lines down)
+        if (text.endsWith("j")) {
+            val count = text.dropLast(1).toIntOrNull() ?: return null
+            val targetLine = currentLine + count
+            if (targetLine < 1 || targetLine > lineCount) return null
+            return Pair(targetLine, 1)
+        }
 
         val parts = text.split(":")
         val lineNumber = parts[0].toIntOrNull() ?: return null
@@ -329,11 +352,12 @@ class GoToLinePreviewPopup(
         }
 
         // Show navigation hint
+        val isRelative = text.endsWith("j")
         val hasColumn = text.contains(":") && text.substringAfter(":").isNotEmpty()
-        statusLabel.text = if (hasColumn) {
-            "Navigate to line $lineNumber, column $column"
-        } else {
-            "Navigate to line $lineNumber"
+        statusLabel.text = when {
+            isRelative -> "Navigate ${"${text.dropLast(1)}"} lines down to line $lineNumber"
+            hasColumn -> "Navigate to line $lineNumber, column $column"
+            else -> "Navigate to line $lineNumber"
         }
 
         val lineStartOffset = document.getLineStartOffset(lineNumber - 1)
@@ -380,14 +404,77 @@ class GoToLinePreviewPopup(
 
     private fun showError(message: String) {
         statusLabel.text = message
-        statusLabel.foreground = java.awt.Color.RED
+        statusLabel.foreground = JBColor.RED
+    }
+
+    private fun createHelperText(): JPanel {
+        val bg = javax.swing.UIManager.getColor("Panel.background")
+            ?: JBColor.GRAY
+        val fg = javax.swing.UIManager.getColor("Label.foreground")
+            ?: JBColor.GRAY
+        val isDarkTheme = (bg.red + bg.green + bg.blue) / 3 < 128
+
+        // Subdued foreground color
+        val subduedFg = java.awt.Color(
+            (fg.red + bg.red) / 2,
+            (fg.green + bg.green) / 2,
+            (fg.blue + bg.blue) / 2,
+        )
+
+        // Badge background
+        val shift = if (isDarkTheme) 25 else -25
+        val badgeBg = java.awt.Color(
+            (bg.red + shift).coerceIn(0, 255),
+            (bg.green + shift).coerceIn(0, 255),
+            (bg.blue + shift).coerceIn(0, 255),
+        )
+
+        fun createBadge(text: String): JBLabel = object : JBLabel(text) {
+            init {
+                font = Font(Font.MONOSPACED, Font.PLAIN, font.size - 1)
+                foreground = subduedFg
+                border = JBUI.Borders.empty(1, 4)
+                isOpaque = false
+            }
+
+            override fun paintComponent(g: Graphics) {
+                val g2 = g.create() as Graphics2D
+                g2.setRenderingHint(
+                    RenderingHints.KEY_ANTIALIASING,
+                    RenderingHints.VALUE_ANTIALIAS_ON,
+                )
+                g2.color = badgeBg
+                g2.fillRoundRect(0, 0, width, height, 6, 6)
+                g2.dispose()
+                super.paintComponent(g)
+            }
+        }
+
+        fun createText(text: String): JBLabel = JBLabel(text).apply {
+            foreground = subduedFg
+            font = font.deriveFont(font.size2D - 1f)
+        }
+
+        return JPanel(FlowLayout(FlowLayout.LEFT, 0, 0)).apply {
+            isOpaque = false
+            add(createText("Format: "))
+            add(createBadge("line[:column]"))
+            add(createText(" or "))
+            add(createBadge("#[j,k]"))
+            add(createText(" (relative) — e.g. "))
+            add(createBadge("42"))
+            add(createText(", "))
+            add(createBadge("42:10"))
+            add(createText(", or "))
+            add(createBadge("10j"))
+        }
     }
 
     private fun createDismissHint(): JPanel {
         val bg = javax.swing.UIManager.getColor("Panel.background")
             ?: javax.swing.UIManager.getColor("control")
         val fg = javax.swing.UIManager.getColor("Label.foreground")
-            ?: java.awt.Color.GRAY
+            ?: JBColor.GRAY
         val isDarkTheme = (bg.red + bg.green + bg.blue) / 3 < 128
 
         // Subdued foreground color (50% opacity effect)
@@ -410,7 +497,7 @@ class GoToLinePreviewPopup(
             init {
                 font = Font(Font.MONOSPACED, Font.PLAIN, font.size - 1)
                 foreground = subduedFg
-                border = EmptyBorder(2, 6, 2, 6)
+                border = JBUI.Borders.empty(2, 6)
                 isOpaque = false
             }
 
